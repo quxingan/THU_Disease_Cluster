@@ -1,5 +1,100 @@
 library(sqldf)
-my_dat = read.csv2('data/prepared_dat.csv',sep = ',')
+my_dat = read.csv2('prepared_dat.csv',sep = ',')
+
+#prepare dat for shiny app
+visual_dat = sqldf("select 地区编码 as area_id, 发病日期 as date,
+                  count(*) as cases
+                 from my_dat
+                 where 经度 != '' and
+                 area_id not in (350403,350427,410306)
+                 group by 地区编码,发病日期
+                 order by area_id")
+
+
+visual_dat$date = as.Date(visual_dat$date)
+##sim population
+set.seed(311)
+visual_dat$population = as.integer(100*runif(nrow(visual_dat),0.5,1.5))
+
+
+#turn shp to csv
+library(sp)
+library(maptools)
+#library(mapdata)
+dis <- readShapeSpatial("district.shp")
+
+diff1 = setdiff(unique(visual_dat$area_id),as.numeric(as.character(dis$dt_adcode)))
+diff2 = setdiff(as.numeric(as.character(dis$dt_adcode)),unique(visual_dat$area_id))
+
+for (i in seq(1,388)){
+  new = c(diff2[i],"2000-1-1",0,100)
+  visual_dat = rbind(visual_dat,new)
+}
+
+#change data type
+visual_dat$area_id = as.numeric(visual_dat$area_id)
+visual_dat$cases = as.numeric(visual_dat$cases)
+visual_dat$population = as.numeric(visual_dat$population)
+
+# sample data and fill the missing date
+visual_dat_sample = sqldf("select * from (
+                          select *, rank () over (partition by area_id
+	                        order by date desc) as date_rank
+                          from visual_dat
+                          ) a
+                          where date_rank<5
+                          order by area_id, date"
+                          )
+#fill the missing date
+missing_date_df = data.frame()
+i=1
+j=2
+while(i<=9919){
+  start_date = as_datetime(visual_dat_sample$date[i])
+  end_date = as_datetime(visual_dat_sample$date[j])
+  dates_diff = as.integer(end_date-start_date)
+  if(visual_dat_sample$area_id[i]==visual_dat_sample$area_id[j] & dates_diff>1){
+    cur_area = visual_dat_sample$area_id[i]
+   # print(start_date+86400)
+    for(k in seq(1:(dates_diff-1))){
+      missing_date = c(cur_area,as.character(as.Date(start_date+86400*k)),0,100,0)
+      missing_date_df =  rbind(missing_date_df,missing_date)
+    }
+    i = j
+    j = j+1
+  }
+  else{
+    i=j
+    j=j+1
+  }
+}
+colnames(missing_date_df) = colnames(visual_dat_sample)
+visual_dat_sample = rbind(visual_dat_sample,missing_date_df)
+visual_dat$date = as.character(visual_dat$date)
+write.csv(visual_dat,"data/prepared_visual_dat_filled_day.csv",col.names = FALSE)
+
+#######################################################################
+#get data in year
+visual_dat = read.csv2('prepared_visual_dat.csv',sep = ',')
+visual_dat07 = sqldf("select area_id, substring(date,1,4) as year,
+                  sum(cases),avg(population)
+                 from visual_dat
+                 where year=='2007'
+                 group by area_id,year
+                 order by area_id,year")
+#fill area
+diff2 = setdiff(as.numeric(as.character(dis$dt_adcode)),unique(visual_dat07$area_id))
+for (i in seq(1,length(diff2))){
+  new = c(diff2[i],"2007",0,100)
+  visual_dat07 = rbind(visual_dat07,new)
+}
+visual_dat07$avg.population. = as.integer(3000*runif(nrow(visual_dat07),0.5,1.5))
+visual_dat07$`sum(cases)` = as.integer(visual_dat07$`sum(cases)`)
+visual_dat07$area_id = as.integer(visual_dat07$area_id)
+
+write.csv(visual_dat07,"prepared_visual_dat_07.csv",col.names = FALSE)
+#######################################################################
+##rfexscan
 
 all_case = sqldf("select 地区编码 as DOHREGION, count(发病日期) as case_cnt,
                  经度 as lon, 纬度 as lat
@@ -7,7 +102,6 @@ all_case = sqldf("select 地区编码 as DOHREGION, count(发病日期) as case_
                  where 经度 != ''
                  group by 地区编码
                  order by DOHREGION")
-
 #get the neighbour of each district
 #method: district are neighbours in the same province
 i = 1
