@@ -1,6 +1,7 @@
 library(sqldf)
-my_dat = read.csv2('prepared_dat.csv',sep = ',')
-
+library(dplyr)
+my_dat = read.csv2('prepared_dat.csv',sep = ',',encoding='UTF-8')
+#dat_filled_day = read.csv2('prepared_visual_dat_filled_day.csv',sep = ',')
 #prepare dat for shiny app
 visual_dat = sqldf("select 地区编码 as area_id, 发病日期 as date,
                   count(*) as cases
@@ -21,7 +22,7 @@ visual_dat$population = as.integer(100*runif(nrow(visual_dat),0.5,1.5))
 library(sp)
 library(maptools)
 #library(mapdata)
-dis <- readShapeSpatial("district.shp")
+dis <- readShapeSpatial("District/District/district.shp")
 
 diff1 = setdiff(unique(visual_dat$area_id),as.numeric(as.character(dis$dt_adcode)))
 diff2 = setdiff(as.numeric(as.character(dis$dt_adcode)),unique(visual_dat$area_id))
@@ -76,23 +77,54 @@ write.csv(visual_dat,"data/prepared_visual_dat_filled_day.csv",col.names = FALSE
 #######################################################################
 #get data in year
 visual_dat = read.csv2('prepared_visual_dat.csv',sep = ',')
-visual_dat07 = sqldf("select area_id, substring(date,1,4) as year,
-                  sum(cases),avg(population)
+visual_dat0407 = sqldf("select area_id, substring(date,1,4) as year,
+                  sum(cases) as cases,avg(population) as population
                  from visual_dat
-                 where year=='2007'
+                 where year in('2007','2005','2006','2004')
                  group by area_id,year
                  order by area_id,year")
 #fill area
-diff2 = setdiff(as.numeric(as.character(dis$dt_adcode)),unique(visual_dat07$area_id))
+diff2 = setdiff(as.numeric(as.character(dis$dt_adcode)),unique(visual_dat0407$area_id))
 for (i in seq(1,length(diff2))){
-  new = c(diff2[i],"2007",0,100)
-  visual_dat07 = rbind(visual_dat07,new)
+  new04 = c(diff2[i],"2004",0,100)
+  new05 = c(diff2[i],"2005",0,100)
+  new06 = c(diff2[i],"2006",0,100)
+  new07 = c(diff2[i],"2007",0,100)
+  visual_dat0407 = rbind(visual_dat0407,new04,new05,new06,new07)
 }
-visual_dat07$avg.population. = as.integer(3000*runif(nrow(visual_dat07),0.5,1.5))
-visual_dat07$`sum(cases)` = as.integer(visual_dat07$`sum(cases)`)
-visual_dat07$area_id = as.integer(visual_dat07$area_id)
+diff2 = setdiff(as.numeric(as.character(dis$dt_adcode)),unique(visual_dat0407$area_id))
+print(paste('diff2:',diff2))
+#fill year
+all_dt = as.numeric(as.character(dis$dt_adcode))
+for(i in seq(1,length(all_dt))){
+  if(i%%100==0){
+    print(paste(i,'complete'))
+  }
+  cur_dt = all_dt[i]
+  has_year = subset(visual_dat0407,area_id==cur_dt,select = year)
+  if (!('2004' %in% has_year$year)){
+    new = c(cur_dt,"2004",runif(1,0,100),100)
+    visual_dat0407 = rbind(visual_dat0407,new)
+  }
+  if (!('2005' %in% has_year$year)){
+    new = c(cur_dt,"2004",runif(1,0,100),100)
+    visual_dat0407 = rbind(visual_dat0407,new)
+  }
+  if (!"2006" %in% has_year$year){
+    new = c(cur_dt,"2006",runif(1,0,100),100)
+    visual_dat0407 = rbind(visual_dat0407,new)
+  }
+  if (!("2007" %in% has_year$year)){
+    new = c(cur_dt,"2007",runif(1,0,100),100)
+    visual_dat0407 = rbind(visual_dat0407,new)
+  }
+}
 
-write.csv(visual_dat07,"prepared_visual_dat_07.csv",col.names = FALSE)
+visual_dat0407$population = as.integer(10000*runif(nrow(visual_dat0407),0.35,20))
+visual_dat0407$cases = as.integer(visual_dat0407$cases)
+visual_dat0407$area_id = as.integer(visual_dat0407$area_id)
+
+write.csv(visual_dat0407,"prepared_visual_dat_0407.csv")
 #######################################################################
 ##rfexscan
 
