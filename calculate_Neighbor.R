@@ -1,12 +1,15 @@
 library(sqldf)
+library('rflexscan')
+library("rgdal")
+library("spdep")
+library("RColorBrewer")
+
 dat = read.csv2("prepared_dat.csv",sep = ",",encoding = 'UTF-8')
 
 province_lat_lon = unique(subset(dat,select = c("地区编码","经度","纬度")))
 colnames(province_lat_lon) = c("code","lon","lat")
 province_lat_lon = sqldf("select * from province_lat_lon 
                          where lon !=''")
-
-require(geosphere)
 
 
 ########################################################################
@@ -38,45 +41,34 @@ new_china_data = sqldf("select  a.dt_adcode, case_cnt,expected_case,
                        ")
 new_china_data$lon = as.numeric(new_china_data$lon)
 new_china_data$lat = as.numeric(new_china_data$lat)
-new_china_data[is.na(new_china_data$case_cnt),"case_cnt"] = 0
-new_china_data[is.na(new_china_data$expected_case),"expected_case"] = 10000
-new_china_data[is.na(new_china_data$lat),"lat"] = mean(new_china_data$lat,na.rm = TRUE)
-new_china_data[is.na(new_china_data$lon),"lon"] = mean(new_china_data$lon,na.rm = TRUE)
+
+#remove na
+na.pos = is.na(new_china_data$lon)
+new_china_data = new_china_data[!na.pos,]
 china@data = new_china_data
+##polygons
+poly_list = china@polygons
+china@polygons = poly_list[!na.pos]
+##plotorder
+o = china@plotOrder
+match.pos = match(o,seq(1:2875)[na.pos])
+o = o[is.na(match.pos)]
+china@plotOrder=o
 
-coord <- data.frame(x=new_china_data$lon, y=new_china_data$lat)
-coord$x = as.numeric(coord$x)
-coord$y = as.numeric(coord$y)
-coordinates(coord) <- c("x", "y")
-proj4string(coord) <- proj4string(china)
-coord <- spTransform(coord, CRS("+init=epsg:3415"))
+#run algorithm
+res = flexscan_qxa(china)
 
-library('rflexscan')
-library("rgdal")
-library("spdep")
-library("RColorBrewer")
-#china nb
-nb <- poly2nb(china, queen = T)
-head(nb)
-#bj nb
-beijing = china[startsWith(china$dt_adcode, "11"),] 
-nb_bj <- poly2nb(beijing, queen = T)
-head(nb_bj)
-fls_bj <- rflexscan(name = beijing$dt_adcode,
-                 lat = beijing$lat, lon = beijing$lon, nb = nb_bj,
-                 observed = beijing$case_cnt, expected = beijing$expected_case)
 
-fls <- rflexscan(name = china$dt_adcode,
-                 lat = china$lat, lon = china$lon, nb = nb,
-                 observed = china$case_cnt, expected = china$expected_case)
-print(fls)
-summary(fls)
 
-plot(fls, rank = 1:7, col = brewer.pal(7, "RdYlBu"))
-box()
-legend("topleft", legend = 1:7, fill = brewer.pal(7, "RdYlBu"), bty="n")
 
-choropleth(manhattan, fls, rank = 1:7, col = brewer.pal(7, "RdYlBu"))
-legend("topleft", legend = 1:7, fill = brewer.pal(7, "RdYlBu"), bty="n")
+
+
+
+
+
+
+
+
+
 
 
