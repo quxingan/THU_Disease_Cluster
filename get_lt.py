@@ -12,7 +12,7 @@ import pandas as pd
 
 
 # 百度API密钥，免费额度6000次，全国区划3000+足够用
-ak = "GWRTEwGQnbkoCZSy04XHGGSTdGV6wHLG"
+ak = "mR2x438jrsgn6myhtqk28lsFYh3zlWeY"
 
 
 # 根据区划名称获取经纬度信息
@@ -61,8 +61,12 @@ if __name__ == "__main__":
     columns=['区划级别',	'区划编码	','区划名称','经度',	'纬度']
     
     df=pd.DataFrame(columns=columns) #新建一个Dataframe
+    i=0
 
     for (level,code,name) in get_all_region_codes():
+        if (i%200==0):
+            print(i)
+        i+=1
         location = get_location_by_region_name(name)
         if not location:
             lon, lat = "",""
@@ -79,9 +83,9 @@ if __name__ == "__main__":
     
     df['地区编码'] =  df['地区编码'].astype(str)
     pos_date['地区编码'] =  pos_date['地区编码'].astype(str)
-    dat = pd.merge(pos_date, df,how='left',on='地区编码')
+    dat = pd.merge(pos_date, df,how='right',on='地区编码')
     
-    dat.to_csv('data/prepared_dat.csv')
+    dat.to_csv('data/prepared_dat_all_district.csv')
     
     
     
