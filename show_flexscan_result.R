@@ -2,6 +2,7 @@
 #fls: flexscan result
 #data_shp: data read from .shp file
 #return plot
+library(RColorBrewer)
 summary_plot  = function(fls,data_shp){
   print(fls)
   summary(fls)
