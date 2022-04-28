@@ -194,7 +194,3 @@ legend("topleft", legend = 1:7, fill = brewer.pal(7, "RdYlBu"), bty="n")
 
 
 
-
-
-
-

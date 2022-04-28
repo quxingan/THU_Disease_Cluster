@@ -80,20 +80,5 @@ match.pos = match(o,seq(1:2875)[na.pos])
 o = o[is.na(match.pos)]
 china@plotOrder=o
 
-#run algorithm
-res = flexscan_qxa(china,'coord')
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
