@@ -1,27 +1,27 @@
 #used to select time window
-#return .shp file for flexscan
+
 library(sqldf)
 library(dplyr)
 library("rgdal")
-# china <- readOGR("District/District/district.shp",
-#                  stringsAsFactors = FALSE,encoding = 'UTF-8')
 # 
 # disease_data = read.csv2('disease_data.csv')
 # district_lon_lat = read.csv2('district_lon_lat.csv')
 
 
-#disease_data: contains two columns: district_code,date
+#disease_data: contains two columns: district_code,date.Date format must be the same as start_date &end_date
 #expected_dat: expect case in the time widow, contains two columns: district_code, expected case
 #start_date: the start of time window
 #end_date: the end of time window
 #district_lon_lat: contains 3 columns: district_code, lon,lat
+#return .shp file for flexscan
 selectTimeWindow = function(disease_data,
                             expected_data,
-                            start_date= '2004/12/27',
-                            end_date= '2006/10/10',
+                            start_date= '2004-12-27',
+                            end_date= '2006-10-10',
                             district_lon_lat)
   {
-  time_window_summary = subset(disease_data,date >= start_date, date <= end_date)
+  pos = disease_data$date >= start_date & disease_data$date <= end_date
+  time_window_summary = disease_data[pos,]
   time_window_summary = sqldf("select district_code,
                               count(*) as case_cnt
                               from time_window_summary
